@@ -3,7 +3,10 @@ import os
 import glob
 
 def handle(command):
-    print command
+    if command == 'LIST':
+        files = os.listdir(path)
+        for file in files:
+            c.send(file.encode())
 
 
 ss = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -22,4 +25,3 @@ path = 'files/'
 while True:
     command = c.recv(1024)
     handle(command)
-    files = os.listdir(path)

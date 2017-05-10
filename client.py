@@ -12,6 +12,7 @@ if recieved != "":
     while True:
         command = raw_input('>> ')
         s.send(command.encode())
-
-
+        if (command == 'LIST'):
+            result = s.recv(1024)
+            print result
 s.close()
