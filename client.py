@@ -12,20 +12,22 @@ control_socket.connect((host, control_port))
 data_socket.connect((host, data_port))
 
 while True:
-    command = raw_input('>> ')
+
+    command = input('>> ')
     raw_command = command.split()[0]
-	
-    control_socket.send(raw_command.encode())
+    control_socket.sendall(raw_command.encode())
 
-    if raw_command == 'LIST':
-		result = control_socket.recv(2048)
-		print result
+    if raw_command == 'QUIT':
+    	break
 
-    if raw_command == 'RETR':
-		file_name = command.split()[1]
-		control_socket.send(file_name.encode())
-		result = data_socket.recv(65536)
-		print result
-		file = open(path + file_name, 'wb+')
-		file.write(result)
-		file.close
+    elif raw_command == 'LIST':
+        result = control_socket.recv(4096).decode()
+        print(result)
+
+    elif raw_command == 'RETR':
+        file_name = command.split()[1]
+        control_socket.sendall(file_name.encode())
+        result = data_socket.recv(4096).decode()
+        file = open(path + file_name, 'wb+')
+        file.write(result.encode())
+        file.close()
