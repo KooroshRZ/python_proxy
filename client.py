@@ -37,30 +37,37 @@ def recvall(size, data_socket):
 
 
 while True:
-    command = input('>> ')
-    raw_command = command.split()[0]
-    control_socket.send(command.encode())
+    username = input('Username: ')
+    password = input('Password: ')
 
-    if raw_command == 'QUIT':
-    	break
+    if username == 'root' and password == 'toor':
+        print("authenticated successfull !!")
+        command = input('>> : ')
 
-    elif raw_command == 'LIST':
-        result = control_socket.recv(4096).decode()
-        print(result)
+        raw_command = command.split()[0]
+        control_socket.send(command.encode())
 
-    elif raw_command == 'RETR':
+        if raw_command == 'QUIT':
+            break
 
-        file_name = command.split()[1]
-        code = control_socket.recv(1024).decode()
+        elif raw_command == 'LIST':
+            result = control_socket.recv(4096).decode()
+            print(result)
 
-        
-        if code == '150':
-        	size = control_socket.recv(1024).decode()
-	        data = recvall(int(size), data_socket)
-	        file = open(path + file_name, 'wb+')
-	        file.write(data)
-	        file.close()
-	        print("file downloaded successfully!")
-        elif code == '550':
-        	print("file not found")
+        elif raw_command == 'RETR':
 
+            file_name = command.split()[1]
+            code = control_socket.recv(1024).decode()
+
+            
+            if code == '150':
+                size = control_socket.recv(1024).decode()
+                data = recvall(int(size), data_socket)
+                file = open(path + file_name, 'wb+')
+                file.write(data)
+                file.close()
+                print("file downloaded successfully!")
+            elif code == '550':
+                print("file not found")
+    else:
+        print("Not authenticated !")

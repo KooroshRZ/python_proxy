@@ -41,20 +41,24 @@ class ClientThread(Thread):
         self.web_socket.connect(("192.168.128.30", 80))
         self.web_socket.send(URL_head.encode())
         result = self.web_socket.recv(4096).decode()
-        size_i = result.find('Content-Length')+16
-        size_j = result.find('Content-Type')-2
-        size = int(result[size_i:size_j])
 
-        head_size = size_j + 30
-        size = size + head_size
+        http_status = result[9:12]
+        if http_status == '200':
+            size_i = result.find('Content-Length')+16
+            size_j = result.find('Content-Type')-2
+            size = int(result[size_i:size_j])
 
-        self.web_socket.send(URL_get.encode())
-        data = self.recvall(size)
-        web_socket.close()
+            head_size = size_j + 30
+            size = size + head_size
 
-        file = open(path + str(file_name), 'wb+')
-        file.write(data[head_size:size])
-        file.close()
+            self.web_socket.send(URL_get.encode())
+            data = self.recvall(size)
+            web_socket.close()
+
+            file = open(path + str(file_name), 'wb+')
+            file.write(data[head_size:size])
+            file.close()
+
 
     def send_file(self, file_name):
         files = os.listdir(path)
@@ -77,16 +81,21 @@ class ClientThread(Thread):
 
         # send remote
         self.get_from_server(file_name)
-        file = open(path + file_name, 'rb')
-        if file != "":
-            data = file.read(65536)
+        try:
+            file = open(path + file_name, 'rb')
             code = 150
+        except:
+            code = 550   
+
+        if code == 150:
+            data = file.read(65536)
             self.control_conn.send(str(code).encode())
             time.sleep(1)
             self.control_conn.send(str(len(data)).encode())
             self.data_conn.send(data)
-        else:
-            code = 550
+            print("file " + file_name + " downloaded by client " + self.IP)
+
+        elif code == 550:
             self.control_conn.send(str(code).encode())
 
 
@@ -98,10 +107,8 @@ class ClientThread(Thread):
             #list files from server
 
         if raw_command == 'RETR':
-            print("retr")
             file_name = command.split()[1]
             self.send_file(file_name)
-            print("file " + file_name + " downloaded by client " + IP)
             
 
     def run(self):
