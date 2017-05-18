@@ -1,4 +1,5 @@
 import socket
+import time
 
 path = 'client_files/'
 
@@ -28,21 +29,22 @@ data_socket.connect((host, data_port))
 def recvall(size, data_socket):
     data = bytes()
     while len(data) < size:
+        print("...", end="\r")
+        time.sleep(0.5)
         packet = data_socket.recv(size - len(data))
         if not packet:
             return None
         data += packet
 
+
     return data
 
-
-while True:
-    username = input('Username: ')
-    password = input('Password: ')
-
-    if username == 'root' and password == 'toor':
-        print("authenticated successfull !!")
-        command = input('>> : ')
+username = input('Username: ')
+password = input('Password: ')
+if username == 'root' and password == 'toor':
+    print("authenticated successfull !!")	
+    while True:    
+        command = input('>> ')
 
         raw_command = command.split()[0]
         control_socket.send(command.encode())
@@ -59,7 +61,6 @@ while True:
             file_name = command.split()[1]
             code = control_socket.recv(1024).decode()
 
-            
             if code == '150':
                 size = control_socket.recv(1024).decode()
                 data = recvall(int(size), data_socket)
@@ -69,5 +70,5 @@ while True:
                 print("file downloaded successfully!")
             elif code == '550':
                 print("file not found")
-    else:
-        print("Not authenticated !")
+else:
+    print("Not authenticated !")

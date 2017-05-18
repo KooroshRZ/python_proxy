@@ -7,22 +7,24 @@ from socketserver import ThreadingMixIn
 
 data_port = 3020
 control_port = 3021
-host = '172.24.36.112'
+server = '172.24.36.112'
+print(server)
 path = 'files/'
 
 
 class ClientThread(Thread):
 
-    def __init__(self, control_conn, data_conn, web_socket, IP):
+    def __init__(self, control_conn, data_conn, IP):
         Thread.__init__(self)
         self.IP = IP
         self.data_conn = data_conn
         self.control_conn = control_conn
-        self.web_socket = web_socket
+        # self.web_socket = web_socket
 
         print("[+] New client connected " + IP)
 
     def recvall(self, size):
+        "start recv"
         data = bytes()
         while len(data) < size:
             packet = self.web_socket.recv(size - len(data))
@@ -35,29 +37,50 @@ class ClientThread(Thread):
 
     def get_from_server(self, file_name):
 
-        URL_head = "HEAD /~94131090/CN1_Project_Files/" + str(file_name) + " HTTP/1.1\r\nHost: 192.168.128.30\r\n\r\n"
-        URL_get = "GET /~94131090/CN1_Project_Files/" + str(file_name) + " HTTP/1.1\r\nHost: 192.168.128.30\r\n\r\n"
+        host = socket.gethostbyname('aparat.com')
+        print(host)
 
-        self.web_socket.connect(("192.168.128.30", 80))
+        URL_head = "HEAD /public/public/images/" + str(file_name) + " HTTP/1.1\r\nHost: " + host + "\r\n\r\n"
+        URL_get = "GET /public/public/images/" + str(file_name) + " HTTP/1.1\r\nHost: " + host + "\r\n\r\n"
+        web_socket = socket.socket(socket.AF_INET, socket.SOL_SOCKET)
+        self.web_socket = web_socket
+        self.web_socket.connect((host, 80))
         self.web_socket.send(URL_head.encode())
         result = self.web_socket.recv(4096).decode()
 
         http_status = result[9:12]
+        print("status code: " + http_status)
+        tmp = result.encode()
+
         if http_status == '200':
             size_i = result.find('Content-Length')+16
-            size_j = result.find('Content-Type')-2
-            size = int(result[size_i:size_j])
-
-            head_size = size_j + 30
+            index = 0
+            while True:
+                if tmp[size_i + index] == 13:
+                    break
+                index += 1
+            size = int(result[size_i:size_i + index])
+            while True:
+                if tmp[index] == 13 and tmp[index+3] == 10:
+                    head_size = index + 4
+                    break
+                index += 1
+            # print("head : " + str(head_size))
+            print(result[0:head_size])
             size = size + head_size
+            print(result[head_size:size])
+            # print("size : " + str(size))
+
 
             self.web_socket.send(URL_get.encode())
             data = self.recvall(size)
-            web_socket.close()
+            
 
-            file = open(path + str(file_name), 'wb+')
+            file = open(path + str(file_name), 'wb+')   
             file.write(data[head_size:size])
             file.close()
+
+        web_socket.close()
 
 
     def send_file(self, file_name):
@@ -95,12 +118,11 @@ class ClientThread(Thread):
             self.data_conn.send(data)
             print("file " + file_name + " downloaded by client " + self.IP)
 
-        elif code == 550:
+        elif code == 550:   
             self.control_conn.send(str(code).encode())
 
 
     def do_command(self, command):
-        print(command)
         raw_command = command.split()[0]
         if raw_command == 'LIST':
             files = os.listdir(path)
@@ -119,15 +141,15 @@ class ClientThread(Thread):
 #data socket
 data_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 data_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-data_socket.bind((host, data_port))
+data_socket.bind((server, data_port))
 
 #control socket
 control_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 control_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-control_socket.bind((host, control_port))
+control_socket.bind((server, control_port))
 
 #web server socket
-web_socket = socket.socket(socket.AF_INET, socket.SOL_SOCKET)
+
 
 threads = []
 data_socket.listen(10)
@@ -150,7 +172,7 @@ while True:
     control_conns.append(control_conn)
     data_conns.append(data_conn)
 
-    new_thread = ClientThread(control_conns[i], data_conns[i], web_socket, IP)
+    new_thread = ClientThread(control_conns[i], data_conns[i], IP)
     new_thread.start()
     threads.append(new_thread)
     i += 1
