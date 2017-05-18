@@ -41,7 +41,14 @@ def recvall(size, data_socket):
 
 username = input('Username: ')
 password = input('Password: ')
-if username == 'root' and password == 'toor':
+
+control_socket.send(username.encode())
+time.sleep(0.3)
+control_socket.send(password.encode())
+
+auth = control_socket.recv(1024).decode()
+print(auth)
+if auth == "authed":
     print("authenticated successfull !!")	
     while True:    
         command = input('>> ')

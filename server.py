@@ -1,6 +1,7 @@
 import socket
 import os
 import time
+import datetime
 from threading import Thread
 from socketserver import ThreadingMixIn
 
@@ -19,7 +20,9 @@ class ClientThread(Thread):
         self.IP = IP
         self.data_conn = data_conn
         self.control_conn = control_conn
-        # self.web_socket = web_socket
+        log_file = open('logs/server-logs.txt', 'a+')
+        log_file.write("client " + self.IP + " connected at " + datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S") + "\n")
+        log_file.close()
 
         print("[+] New client connected " + IP)
 
@@ -95,6 +98,9 @@ class ClientThread(Thread):
                     time.sleep(1)
                     self.control_conn.send(str(len(data)).encode())
                     self.data_conn.send(data)
+                    log_file = open('logs/server-logs.txt', 'a+')
+                    log_file.write(file_name + " downloaded by client " + self.IP + "\n")
+                    log_file.close()
                 else:
                     code = 550
                     self.control_conn.sendall(code.encode())
@@ -114,7 +120,9 @@ class ClientThread(Thread):
             time.sleep(1)
             self.control_conn.send(str(len(data)).encode())
             self.data_conn.send(data)
-            print("file " + file_name + " downloaded by client " + self.IP)
+            log_file = open('logs/server-logs.txt', 'a+')
+            log_file.write("file " + file_name + " downloaded by client " + self.IP)
+            log_file.close()
 
         elif code == 550:
             self.control_conn.send(str(code).encode())
@@ -132,9 +140,20 @@ class ClientThread(Thread):
 
 
     def run(self):
-        while True:
-            command = self.control_conn.recv(1024).decode()
-            self.do_command(command)
+        print("run")
+        username = self.control_conn.recv(1024).decode()
+        time.sleep(0.3)
+        password = self.control_conn.recv(1024).decode()
+        print(password)
+        if (username == "root") and (password == "toor"):
+            print("authed")
+            self.control_conn.send("authed".encode())
+            while True:
+                command = self.control_conn.recv(1024).decode()
+                self.do_command(command)
+        else:
+            print("unauthed")
+            self.control_conn.send("unauthed".encode())
 
 #data socket
 data_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -145,9 +164,6 @@ data_socket.bind((server, data_port))
 control_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 control_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
 control_socket.bind((server, control_port))
-
-#web server socket
-
 
 threads = []
 data_socket.listen(10)
