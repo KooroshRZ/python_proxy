@@ -37,17 +37,17 @@ class ClientThread(Thread):
 
     def get_from_server(self, file_name):
 
-        host = socket.gethostbyname('aparat.com')
+        host = socket.gethostbyname('ceit.aut.ac.ir')
         print(host)
 
-        URL_head = "HEAD /public/public/images/" + str(file_name) + " HTTP/1.1\r\nHost: " + host + "\r\n\r\n"
-        URL_get = "GET /public/public/images/" + str(file_name) + " HTTP/1.1\r\nHost: " + host + "\r\n\r\n"
+        URL_head = "HEAD /~94131090/CN1_Project_Files/"   + str(file_name) + " HTTP/1.1\r\nHost: " + host + "\r\n\r\n"
+        URL_get = "GET /~94131090/CN1_Project_Files/" + str(file_name) + " HTTP/1.1\r\nHost: " + host + "\r\n\r\n"
         web_socket = socket.socket(socket.AF_INET, socket.SOL_SOCKET)
         self.web_socket = web_socket
         self.web_socket.connect((host, 80))
         self.web_socket.send(URL_head.encode())
         result = self.web_socket.recv(4096).decode()
-
+        # print(result)
         http_status = result[9:12]
         print("status code: " + http_status)
         tmp = result.encode()
@@ -59,24 +59,22 @@ class ClientThread(Thread):
                 if tmp[size_i + index] == 13:
                     break
                 index += 1
+            print(str(index))
             size = int(result[size_i:size_i + index])
             while True:
                 if tmp[index] == 13 and tmp[index+3] == 10:
                     head_size = index + 4
                     break
                 index += 1
-            # print("head : " + str(head_size))
-            print(result[0:head_size])
+
             size = size + head_size
-            print(result[head_size:size])
-            # print("size : " + str(size))
 
 
             self.web_socket.send(URL_get.encode())
             data = self.recvall(size)
-            
 
-            file = open(path + str(file_name), 'wb+')   
+
+            file = open(path + str(file_name), 'wb+')
             file.write(data[head_size:size])
             file.close()
 
@@ -108,7 +106,7 @@ class ClientThread(Thread):
             file = open(path + file_name, 'rb')
             code = 150
         except:
-            code = 550   
+            code = 550
 
         if code == 150:
             data = file.read(65536)
@@ -118,7 +116,7 @@ class ClientThread(Thread):
             self.data_conn.send(data)
             print("file " + file_name + " downloaded by client " + self.IP)
 
-        elif code == 550:   
+        elif code == 550:
             self.control_conn.send(str(code).encode())
 
 
@@ -131,13 +129,13 @@ class ClientThread(Thread):
         if raw_command == 'RETR':
             file_name = command.split()[1]
             self.send_file(file_name)
-            
+
 
     def run(self):
         while True:
             command = self.control_conn.recv(1024).decode()
             self.do_command(command)
-	    
+
 #data socket
 data_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 data_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
