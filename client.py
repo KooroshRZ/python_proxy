@@ -5,7 +5,7 @@ path = 'client_files/'
 
 data_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 control_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-host = '172.24.36.112'
+host = '192.168.137.143'
 data_port = 3020
 control_port = 3021
 
@@ -60,13 +60,15 @@ if auth == "authed":
             break
 
         elif raw_command == 'LIST':
-            result = control_socket.recv(4096).decode()
-            print(result)
+            size = control_socket.recv(1024).decode()
+            result = recvall(int(size), data_socket)
+            print(result.decode())
 
         elif raw_command == 'RETR':
 
             file_name = command.split()[1]
             code = control_socket.recv(1024).decode()
+
 
             if code == '150':
                 size = control_socket.recv(1024).decode()

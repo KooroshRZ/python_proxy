@@ -8,7 +8,7 @@ from socketserver import ThreadingMixIn
 
 data_port = 3020
 control_port = 3021
-server = '172.24.36.112'
+server = '192.168.137.143'
 print(server)
 path = 'files/'
 
@@ -20,6 +20,7 @@ class ClientThread(Thread):
         self.IP = IP
         self.data_conn = data_conn
         self.control_conn = control_conn
+        self.files_list = []
         log_file = open('logs/server-logs.txt', 'a+')
         log_file.write("client " + self.IP + " connected at " + datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S") + "\n")
         log_file.close()
@@ -27,7 +28,7 @@ class ClientThread(Thread):
         print("[+] New client connected " + IP)
 
     def recvall(self, size):
-        "start recv"
+
         data = bytes()
         while len(data) < size:
             packet = self.web_socket.recv(size - len(data))
@@ -37,6 +38,26 @@ class ClientThread(Thread):
             print(len(data))
 
         return data
+
+
+    def get_size(self, result):
+        tmp = result.encode()
+        size_i = result.find('Content-Length')+16
+        index = 0
+        while True:
+            if tmp[size_i + index] == 13:
+                break
+            index += 1
+
+        size = int(result[size_i:size_i + index])
+        while True:
+            if tmp[index] == 13 and tmp[index+3] == 10:
+                head_size = index + 4
+                break
+            index += 1
+
+        size = size + head_size
+        return size, head_size
 
     def get_from_server(self, file_name):
 
@@ -50,39 +71,63 @@ class ClientThread(Thread):
         self.web_socket.connect((host, 80))
         self.web_socket.send(URL_head.encode())
         result = self.web_socket.recv(4096).decode()
-        # print(result)
         http_status = result[9:12]
         print("status code: " + http_status)
         tmp = result.encode()
 
         if http_status == '200':
-            size_i = result.find('Content-Length')+16
-            index = 0
-            while True:
-                if tmp[size_i + index] == 13:
-                    break
-                index += 1
-            print(str(index))
-            size = int(result[size_i:size_i + index])
-            while True:
-                if tmp[index] == 13 and tmp[index+3] == 10:
-                    head_size = index + 4
-                    break
-                index += 1
 
-            size = size + head_size
-
-
+            (size, head_size) = self.get_size(result)
             self.web_socket.send(URL_get.encode())
             data = self.recvall(size)
 
-
             file = open(path + str(file_name), 'wb+')
-            file.write(data[head_size:size])
+            file.write(data[head_size:size])    
             file.close()
 
         web_socket.close()
 
+    def list_files(self):
+        host = socket.gethostbyname('ceit.aut.ac.ir')
+
+        URL_head = "HEAD /~94131090/CN1_Project_Files/ HTTP/1.1\r\nHost:\r\n\r\n"
+        URL_get = "GET /~94131090/CN1_Project_Files/ HTTP/1.1\r\nHost:\r\n\r\n"
+        web_socket = socket.socket(socket.AF_INET, socket.SOL_SOCKET)
+        self.web_socket = web_socket
+        self.web_socket.connect((host, 80))
+        self.web_socket.send(URL_get.encode())
+        result = self.web_socket.recv(4096).decode()
+        http_status = result[9:12]
+
+        if http_status == '200':
+            i = 0
+            (size, head_size) = self.get_size(result)
+            self.web_socket.send(URL_get.encode())
+            result = self.recvall(size).decode()
+            tmp = result
+
+            index = 0
+            while tmp[0:6] != 'ddress':
+                index = tmp.find('<a')
+                i += 1
+                tmp = tmp[index+2:len(tmp)]
+                s_index = tmp.find('>') + 1
+                e_index = tmp.find('</a>')
+                self.files_list.append(tmp[s_index:e_index])
+
+            self.files_list.remove('Name')
+            self.files_list.remove('Last modified')
+            self.files_list.remove('Size')
+            self.files_list.remove('Description')
+            self.files_list.remove('Parent Directory')
+            self.files_list.pop()
+
+            for file in self.files_list:
+                self.files = file + "\n"
+
+            self.control_conn.send(str(len(self.files)).encode())
+            self.data_conn.send(self.files.encode())
+        
 
     def send_file(self, file_name):
         files = os.listdir(path)
@@ -131,7 +176,7 @@ class ClientThread(Thread):
     def do_command(self, command):
         raw_command = command.split()[0]
         if raw_command == 'LIST':
-            files = os.listdir(path)
+            self.list_files()
             #list files from server
 
         if raw_command == 'RETR':
@@ -144,7 +189,6 @@ class ClientThread(Thread):
         username = self.control_conn.recv(1024).decode()
         time.sleep(0.3)
         password = self.control_conn.recv(1024).decode()
-        print(password)
         if (username == "root") and (password == "toor"):
             print("authed")
             self.control_conn.send("authed".encode())
