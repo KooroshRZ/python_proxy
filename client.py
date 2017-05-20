@@ -3,9 +3,9 @@ import time
 
 path = 'client_files/'
 
-data_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-control_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-host = '192.168.137.143'
+data_socket = socket.socket(socket.AF_INET, socket.SOL_SOCKET)
+control_socket = socket.socket(socket.AF_INET, socket.SOL_SOCKET)
+host = '172.24.36.134'
 data_port = 3020
 control_port = 3021
 
@@ -29,8 +29,6 @@ data_socket.connect((host, data_port))
 def recvall(size, data_socket):
     data = bytes()
     while len(data) < size:
-        print("...", end="\r")
-        time.sleep(0.5)
         packet = data_socket.recv(size - len(data))
         if not packet:
             return None
@@ -49,7 +47,7 @@ control_socket.send(password.encode())
 auth = control_socket.recv(1024).decode()
 print(auth)
 if auth == "authed":
-    print("authenticated successfull !!")	
+    print("authenticated successfull !!")
     while True:    
         command = input('>> ')
 
@@ -78,6 +76,6 @@ if auth == "authed":
                 file.close()
                 print("file downloaded successfully!")
             elif code == '550':
-                print("file not found")
+                print("file not found or access denied !!!")
 else:
     print("Not authenticated !")

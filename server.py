@@ -8,7 +8,7 @@ from socketserver import ThreadingMixIn
 
 data_port = 3020
 control_port = 3021
-server = '192.168.137.143'
+server = '172.24.36.134'
 print(server)
 path = 'files/'
 
@@ -21,6 +21,7 @@ class ClientThread(Thread):
         self.data_conn = data_conn
         self.control_conn = control_conn
         self.files_list = []
+        self.files = ""
         log_file = open('logs/server-logs.txt', 'a+')
         log_file.write("client " + self.IP + " connected at " + datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S") + "\n")
         log_file.close()
@@ -106,14 +107,18 @@ class ClientThread(Thread):
             result = self.recvall(size).decode()
             tmp = result
 
+            index = tmp.find('HTTP')
+            tmp = tmp[index:len(tmp)] + tmp[:index]
             index = 0
-            while tmp[0:6] != 'ddress':
-                index = tmp.find('<a')
+            while index != -1:
+                index = tmp.find('<a ')
                 i += 1
                 tmp = tmp[index+2:len(tmp)]
                 s_index = tmp.find('>') + 1
                 e_index = tmp.find('</a>')
                 self.files_list.append(tmp[s_index:e_index])
+
+
 
             self.files_list.remove('Name')
             self.files_list.remove('Last modified')
@@ -123,7 +128,9 @@ class ClientThread(Thread):
             self.files_list.pop()
 
             for file in self.files_list:
-                self.files = file + "\n"
+                self.files = self.files + "\n" + file
+
+            print(self.files)
 
             self.control_conn.send(str(len(self.files)).encode())
             self.data_conn.send(self.files.encode())
@@ -144,7 +151,7 @@ class ClientThread(Thread):
                     self.control_conn.send(str(len(data)).encode())
                     self.data_conn.send(data)
                     log_file = open('logs/server-logs.txt', 'a+')
-                    log_file.write(file_name + " downloaded by client " + self.IP + "\n")
+                    log_file.write(file_name + " downloaded by " + self.IP + "\n")
                     log_file.close()
                 else:
                     code = 550
@@ -177,7 +184,6 @@ class ClientThread(Thread):
         raw_command = command.split()[0]
         if raw_command == 'LIST':
             self.list_files()
-            #list files from server
 
         if raw_command == 'RETR':
             file_name = command.split()[1]
@@ -200,12 +206,12 @@ class ClientThread(Thread):
             self.control_conn.send("unauthed".encode())
 
 #data socket
-data_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+data_socket = socket.socket(socket.AF_INET, socket.SOL_SOCKET)
 data_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
 data_socket.bind((server, data_port))
 
 #control socket
-control_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+control_socket = socket.socket(socket.AF_INET, socket.SOL_SOCKET)
 control_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
 control_socket.bind((server, control_port))
 
