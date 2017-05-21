@@ -3,28 +3,14 @@ import time
 
 path = 'client_files/'
 
-data_socket = socket.socket(socket.AF_INET, socket.SOL_SOCKET)
-control_socket = socket.socket(socket.AF_INET, socket.SOL_SOCKET)
+data_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+control_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 host = '172.24.36.134'
 data_port = 3020
 control_port = 3021
 
 control_socket.connect((host, control_port))
 data_socket.connect((host, data_port))
-
-#######################################################################################################
-# web_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-# web_socket.connect(("192.168.128.30", 80))
-# web_socket.sendall("GET /~94131090/CN1_Project_Files/flower.jpeg HTTP/1.1\r\nHost: 192.168.128.30\r\n\r\n".encode())
-# result = web_socket.recv(65536)
-# print(result)
-# web_socket.close()
-#
-# # print("result: " + str(result))
-# file = open('flower.jpeg', 'wb+')
-# file.write(result)
-# file.close()
-######################################################################################################
 
 def recvall(size, data_socket):
     data = bytes()
@@ -70,6 +56,7 @@ if auth == "authed":
 
             if code == '150':
                 size = control_socket.recv(1024).decode()
+                print(size)
                 data = recvall(int(size), data_socket)
                 file = open(path + file_name, 'wb+')
                 file.write(data)

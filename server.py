@@ -36,7 +36,6 @@ class ClientThread(Thread):
             if not packet:
                 return None
             data += packet
-            print(len(data))
 
         return data
 
@@ -64,8 +63,8 @@ class ClientThread(Thread):
 
         host = socket.gethostbyname('ceit.aut.ac.ir')
         print(host)
-
-        URL_head = "HEAD /~94131090/CN1_Project_Files/"   + str(file_name) + " HTTP/1.1\r\nHost: " + host + "\r\n\r\n"
+        file_name = file_name.replace(" ", "%20")
+        URL_head = "HEAD /~94131090/CN1_Project_Files/" + str(file_name) + " HTTP/1.1\r\nHost: " + host + "\r\n\r\n"
         URL_get = "GET /~94131090/CN1_Project_Files/" + str(file_name) + " HTTP/1.1\r\nHost: " + host + "\r\n\r\n"
         web_socket = socket.socket(socket.AF_INET, socket.SOL_SOCKET)
         self.web_socket = web_socket
@@ -75,18 +74,19 @@ class ClientThread(Thread):
         http_status = result[9:12]
         print("status code: " + http_status)
         tmp = result.encode()
-
+        data = bytes()
         if http_status == '200':
 
             (size, head_size) = self.get_size(result)
             self.web_socket.send(URL_get.encode())
             data = self.recvall(size)
-
+            file_name = file_name.replace('%20', ' ')
             file = open(path + str(file_name), 'wb+')
             file.write(data[head_size:size])    
             file.close()
 
         web_socket.close()
+        return data
 
     def list_files(self):
         host = socket.gethostbyname('ceit.aut.ac.ir')
@@ -118,8 +118,6 @@ class ClientThread(Thread):
                 e_index = tmp.find('</a>')
                 self.files_list.append(tmp[s_index:e_index])
 
-
-
             self.files_list.remove('Name')
             self.files_list.remove('Last modified')
             self.files_list.remove('Size')
@@ -130,10 +128,12 @@ class ClientThread(Thread):
             for file in self.files_list:
                 self.files = self.files + "\n" + file
 
-            print(self.files)
 
             self.control_conn.send(str(len(self.files)).encode())
             self.data_conn.send(self.files.encode())
+
+            self.files = ""
+            self.files_list = []
         
 
     def send_file(self, file_name):
@@ -144,7 +144,7 @@ class ClientThread(Thread):
             if file_name == file:
                 file = open(path + file_name, 'rb')
                 if file != "":
-                    data = file.read(65536)
+                    data = file.read()
                     code = 150
                     self.control_conn.send(str(code).encode())
                     time.sleep(1)
@@ -155,25 +155,26 @@ class ClientThread(Thread):
                     log_file.close()
                 else:
                     code = 550
-                    self.control_conn.sendall(code.encode())
+                    self.control_conn.send(code.encode())
                 return
 
         # send remote
-        self.get_from_server(file_name)
-        try:
-            file = open(path + file_name, 'rb')
+        data = self.get_from_server(file_name)
+
+        if len(data) > 0:
             code = 150
-        except:
+        else:
             code = 550
 
         if code == 150:
-            data = file.read(65536)
+            file = open(path + file_name, 'rb')
+            data = file.read()
             self.control_conn.send(str(code).encode())
             time.sleep(1)
             self.control_conn.send(str(len(data)).encode())
             self.data_conn.send(data)
             log_file = open('logs/server-logs.txt', 'a+')
-            log_file.write("file " + file_name + " downloaded by client " + self.IP)
+            log_file.write("file " + file_name + " downloaded by client " + self.IP + "\n")
             log_file.close()
 
         elif code == 550:
@@ -182,11 +183,16 @@ class ClientThread(Thread):
 
     def do_command(self, command):
         raw_command = command.split()[0]
+        
+        if len(command.split()) > 1:
+            index = command.find(' ')
+            file_name = command[index+1:len(command)]
+        
         if raw_command == 'LIST':
             self.list_files()
 
         if raw_command == 'RETR':
-            file_name = command.split()[1]
+            print(file_name)
             self.send_file(file_name)
 
 
@@ -206,12 +212,12 @@ class ClientThread(Thread):
             self.control_conn.send("unauthed".encode())
 
 #data socket
-data_socket = socket.socket(socket.AF_INET, socket.SOL_SOCKET)
+data_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 data_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
 data_socket.bind((server, data_port))
 
 #control socket
-control_socket = socket.socket(socket.AF_INET, socket.SOL_SOCKET)
+control_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 control_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
 control_socket.bind((server, control_port))
 
