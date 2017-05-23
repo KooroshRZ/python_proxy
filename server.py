@@ -8,7 +8,7 @@ from socketserver import ThreadingMixIn
 
 data_port = 3020
 control_port = 3021
-server = '172.24.36.134'
+server = '192.168.139.233'
 print(server)
 path = 'files/'
 
@@ -32,11 +32,11 @@ class ClientThread(Thread):
 
         data = bytes()
         while len(data) < size:
-            packet = self.web_socket.recv(size - len(data))
+            packet = self.web_socket.recv(4096)
             if not packet:
                 return None
             data += packet
-
+            print(len(data))
         return data
 
 
@@ -81,6 +81,7 @@ class ClientThread(Thread):
             self.web_socket.send(URL_get.encode())
             data = self.recvall(size)
             file_name = file_name.replace('%20', ' ')
+            print(file_name)
             file = open(path + str(file_name), 'wb+')
             file.write(data[head_size:size])    
             file.close()
@@ -181,6 +182,23 @@ class ClientThread(Thread):
             self.control_conn.send(str(code).encode())
 
 
+    def delete_file(self, file_name):
+        try:
+            os.remove(path + file_name)
+            code = 150
+        except:
+            code = 550
+        return code
+
+            
+    def delete_all_files(self):
+        self.files_list = os.listdir(path)
+        code = 550
+        for file in self.files_list:
+            code = self.delete_file(file)
+        return code
+
+
     def do_command(self, command):
         raw_command = command.split()[0]
         
@@ -191,10 +209,18 @@ class ClientThread(Thread):
         if raw_command == 'LIST':
             self.list_files()
 
-        if raw_command == 'RETR':
+        elif raw_command == 'RETR':
             print(file_name)
             self.send_file(file_name)
 
+        elif raw_command == 'DELE':
+            code = self.delete_file(file_name)
+            self.control_conn.send(str(code).encode())
+
+        elif raw_command == 'RMD':
+            code = self.delete_all_files()
+            control_conn.send(str(code).encode())
+            
 
     def run(self):
         print("run")
